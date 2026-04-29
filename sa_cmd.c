@@ -193,6 +193,24 @@ VNA_SHELL_FUNCTION(cmd_lna)
     redraw_request |= REDRAW_CAL_STATUS | REDRAW_AREA;
   }
 }
+
+VNA_SHELL_FUNCTION(cmd_avoid)
+{
+  extern freq_t dynamic_spur_table[];       // Frequencies to be calculated
+  extern int dynamic_spur_table_size;
+  int m = generic_option_cmd("avoid", "auto|off|on|dump", argc, argv[0]);
+  if (m == 3) {
+    for (int i=0; i < dynamic_spur_table_size; i++)
+      shell_printf("%D\n",dynamic_spur_table[i]);
+  }
+  else if (m>=0) {
+    set_avoid(m);
+    if (m == 0)
+      toggle_debug_avoid();
+    redraw_request |= REDRAW_CAL_STATUS | REDRAW_AREA;
+  }
+}
+
 #endif
 #ifdef __ULTRA__
 VNA_SHELL_FUNCTION(cmd_ultra)
@@ -408,7 +426,7 @@ VNA_SHELL_FUNCTION(cmd_leveloffset)
 {
   //                                     0    1      2
 #ifdef TINYSA4
-  static const char cmd_mode_list[] = "low|switch|receive_switch|out_switch|lna|harmonic|shift|shift1|shift2|shift3|shift4|drive1|drive2|drive3|direct|direct_lna|ultra|ultra_lna|harmonic_lna|adf";
+  static const char cmd_mode_list[] = "low|switch|receive_switch|out_switch|lna|harmonic|shift|shift1|shift2|shift3|shift4|drive1|drive2|drive3|direct|direct_lna|ultra|ultra_lna|harmonic_lna|adf|direct_output|low_output";
 #else
   static const char cmd_mode_list[] = "low|high|switch|receive_switch";
 #endif
@@ -424,7 +442,7 @@ VNA_SHELL_FUNCTION(cmd_leveloffset)
 #endif
 #ifdef TINYSA4
     shell_printf(p, "low",          config.low_level_offset);
-    shell_printf(p, "low output",   config.low_level_output_offset);
+    shell_printf(p, "low_output",   config.low_level_output_offset);
     shell_printf(p, "switch",       config.switch_offset);
     shell_printf(p, "receive_switch",config.receive_switch_offset);
     shell_printf(p, "out_switch",   config.out_switch_offset);
@@ -444,7 +462,7 @@ VNA_SHELL_FUNCTION(cmd_leveloffset)
     shell_printf(p, "ultra",        config.ultra_level_offset);
     shell_printf(p, "ultra_lna",    config.ultra_lna_level_offset);
     shell_printf(p, "adf",          config.adf_level_offset);
-    shell_printf(p, "direct output",config.direct_level_output_offset);
+    shell_printf(p, "direct_output",config.direct_level_output_offset);
 #endif
     return;
   }
@@ -484,6 +502,8 @@ VNA_SHELL_FUNCTION(cmd_leveloffset)
       case 17: config.ultra_lna_level_offset = v; break;
       case 18: config.harmonic_lna_level_offset = v; break;
       case 19: config.adf_level_offset = v; break;
+      case 20: config.direct_level_output_offset = v; break;
+      case 21: config.low_level_output_offset = v; break;
 #endif
       default: goto usage;
     }
@@ -582,7 +602,9 @@ VNA_SHELL_FUNCTION(cmd_rbw)
 
 VNA_SHELL_FUNCTION(cmd_if)
 {
+#ifdef TINYSA4
   char *t = "975M..979M";
+#endif
   if (argc != 1 || argv[0][0] == '?') {
   usage:
 #ifdef TINYSA4
@@ -596,8 +618,10 @@ VNA_SHELL_FUNCTION(cmd_if)
   }
   freq_t a = (freq_t)my_atoi(argv[0]);
   freq_t f = DEFAULT_IF;
+#ifdef TINYSA4
   if (hw_if)
     f = DEFAULT_IF_PLUS;
+#endif
   if (a!= 0 &&( a < (f - (freq_t)5000000) || a>(f + (freq_t)5000000)))
     goto usage;
   setting.auto_IF = false;

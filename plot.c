@@ -1680,7 +1680,11 @@ static void cell_draw_marker_info(int x0, int y0)
       ypos = 14 - y0;
       if (setting.measurement==M_CP ) {
         float v = 100.0 * channel_power_watt[c] /(channel_power_watt[0] + channel_power_watt[1] + channel_power_watt[2]);
-        cell_printf(xpos, ypos, FONT_b"%4.1f%%", v );
+        if (c == 1)
+          cell_printf(xpos, ypos, FONT_b"%4.1f%%", v );
+        else
+          cell_printf(xpos, ypos, FONT_b"%4.1f%% %4.1fdBc", v, channel_power[c] - channel_power[1] );
+
 #ifdef __LEVEL_METER__
         if (c == 1)
            plot_printf(level_text, sizeof(level_text), "%4.1f%%", v);
@@ -1701,7 +1705,7 @@ static void cell_draw_marker_info(int x0, int y0)
     active = 2;
   for (int i = 0; i < MARKER_COUNT; i++) {
     if (i == 3) {
-      if (setting.measurement == M_PASS_BAND) {
+      if (setting.measurement == M_PASS_BAND||setting.measurement == M_WIDTH) {
         freq_t f;
         if (markers[2].frequency>markers[1].frequency)
           f = markers[2].frequency-markers[1].frequency;
@@ -1940,11 +1944,21 @@ draw_frequencies(void)
     plot_printf(buf2, sizeof(buf2), " TIME %.3Fs", (float)t/ONE_SECOND_TIME);
 
   } else if (FREQ_IS_STARTSTOP()) {
+#ifdef TINYSA4
+    plot_printf(buf1, sizeof(buf1), " START %.6QHz    %5.1QHz/ %s", get_sweep_frequency(ST_START) + (setting.frequency_offset - FREQUENCY_SHIFT), grid_span, shift);
+    plot_printf(buf2, sizeof(buf2), " STOP %.6QHz", get_sweep_frequency(ST_STOP) + (setting.frequency_offset - FREQUENCY_SHIFT));
+#else
     plot_printf(buf1, sizeof(buf1), " START %.3QHz    %5.1QHz/ %s", get_sweep_frequency(ST_START) + (setting.frequency_offset - FREQUENCY_SHIFT), grid_span, shift);
     plot_printf(buf2, sizeof(buf2), " STOP %.3QHz", get_sweep_frequency(ST_STOP) + (setting.frequency_offset - FREQUENCY_SHIFT));
+#endif
   } else if (FREQ_IS_CENTERSPAN()) {
+#ifdef TINYSA4
+    plot_printf(buf1, sizeof(buf1), " CENTER %.6QHz    %5.1QHz/ %s", get_sweep_frequency(ST_CENTER) + (setting.frequency_offset - FREQUENCY_SHIFT), grid_span, shift);
+    plot_printf(buf2, sizeof(buf2), " SPAN %.6QHz", get_sweep_frequency(ST_SPAN));
+#else
     plot_printf(buf1, sizeof(buf1), " CENTER %.3QHz    %5.1QHz/ %s", get_sweep_frequency(ST_CENTER) + (setting.frequency_offset - FREQUENCY_SHIFT), grid_span, shift);
     plot_printf(buf2, sizeof(buf2), " SPAN %.3QHz", get_sweep_frequency(ST_SPAN));
+#endif
   }
   ili9341_set_foreground(LCD_FG_COLOR);
   ili9341_set_background(LCD_BG_COLOR);
@@ -1995,7 +2009,7 @@ static const uint8_t sd_icon [] = {
   _BMP16(0b0101010101011000),  //14
   _BMP16(0b0111111111111000)   //
   };
-  if (SD_Inserted()){
+  if (SD_Inserted() && SDIS_IS_ENABLED) {
     ili9341_set_foreground(LCD_BRIGHT_COLOR_GREEN);
     ili9341_blitBitmap(4, SD_CARD_START, 16, 16, sd_icon);
 //  ili9341_drawstring("-SD-", x, SD_CARD_START);
@@ -2242,9 +2256,9 @@ static void update_level_meter(void){
 //  if (area_width-minimum_text_width > 0)
 //    ili9341_fill(OFFSETX+minimum_text_width, graph_bottom+1, area_width-minimum_text_width, CHART_BOTTOM - graph_bottom);
   ili9341_set_foreground(LCD_FG_COLOR);
-  int x_max = area_width+OFFSETX;
+  int x_max = area_width+OFFSETX-1;
 #ifdef TINYSA4
-  int  BIG_SIZE = (auto_capture?2:4);
+  int  BIG_SIZE = (auto_capture?2:3);
 #else
 #define BIG_SIZE 2
 #endif
